@@ -1,4 +1,8 @@
+import DTO.Message;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.LinkedList;
@@ -40,7 +44,11 @@ public class Master implements Runnable{
                 System.out.println(clientSocket);
                 System.out.println(clients.size());
                 clients.add(clientSocket);
-            } catch (IOException e) {
+                InputStream is = clientSocket.getInputStream();
+                ObjectInputStream ois = new ObjectInputStream(is);
+                Message m = (Message) ois.readObject();
+                System.out.println(m);
+            } catch (Exception e) {
                 System.out.println("Error in accepting Socket: " + e);
             }
         }
