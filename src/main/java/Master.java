@@ -1,9 +1,11 @@
+import DTO.DataType;
 import DTO.Message;
 import DTO.MessageType;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ public class Master implements Runnable{
     private boolean isStopped;
     private int maxUsers;
     private Map<Integer,Socket> clients;
+    private DataType dataType = DataType.StringTest;
 
     public Master(int maxUsers) {
         this.isStopped = false;
@@ -57,13 +60,18 @@ public class Master implements Runnable{
                     System.out.println("Master: Wrong Message Type");
                 }
 
-                System.out.println(m);
+                System.out.println("Master: "+m);
             } catch (Exception e) {
                 System.out.println("Master: Error in accepting Socket: " + e);
             }
         }
 
         System.out.println("Master: Finished waiting");
+
+        Map<Integer,byte[]> data = new HashMap<>();
+        if (dataType == DataType.StringTest) {
+             data = getTestData();
+        }
 
 
         for (int i: clients.keySet()) {
@@ -73,11 +81,13 @@ public class Master implements Runnable{
                 OutputStream outputStream = client.getOutputStream();
                 ObjectOutputStream oos = new ObjectOutputStream(outputStream);
 
-                Message ex = new Message(MessageType.Exerscise, 10, 1);
+                byte[] bytesOut = data.get(i);
+                int dataLength = bytesOut.length;
+                Message ex = new Message(MessageType.Exerscise, dataType, dataLength, bytesOut);
+                System.out.println("Master: " + ex);
 
                 oos.writeObject(ex);
                 oos.flush();
-                oos.close();
 
             } catch (Exception e) {
                 System.out.println("Master: Error in sending Exercise: " + e);
@@ -85,8 +95,44 @@ public class Master implements Runnable{
         }
 
 
-        while (!isStopped) {
+        Map<Integer,byte[]> clientMessages = new HashMap<>();
+        try {
+            for (int i: clients.keySet()) {
+                InputStream in = clients.get(i).getInputStream();
+                ObjectInputStream ois = new ObjectInputStream(in);
+                Message m = (Message) ois.readObject();
+                clientMessages.put(i,m.getData());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Master: Error in gettign Result");
+        }
 
+        if (dataType == DataType.StringTest) {
+            handleTestDataResults(clientMessages);
+        }
+
+
+
+    }
+
+
+    private Map<Integer,byte[]> getTestData() {
+        Map<Integer,byte[]> out = new HashMap<>();
+
+        for (int i: clients.keySet()) {
+            clients.get(i);
+            String m = "Du bist Slave " + i;
+            byte[] bytesOut = m.getBytes(StandardCharsets.UTF_8);
+            out.put(i,bytesOut);
+        }
+        return out;
+    }
+
+
+    private void handleTestDataResults(Map<Integer,byte[]> data) {
+        for (int i: data.keySet()) {
+            System.out.println("Master: Slave " + i + ": " + new String(data.get(i), StandardCharsets.UTF_8));
         }
     }
 }

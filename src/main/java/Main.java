@@ -4,9 +4,25 @@ import java.util.concurrent.TimeUnit;
  * Created by Michael Marolt *
  *****************************/
 
-public class Main {
+public class Main implements Runnable{
     public static void main(String[] args) {
-        Slave slave1 = new Slave(1,"127.0.0.1");
-        slave1.run();
+        new Main().run();
+    }
+
+    @Override
+    public void run() {
+        int clients = 3;
+        String host = "127.0.0.1";
+        new Thread(
+                new Master(clients)
+        ).start();
+
+
+        for (int i = 1; i <= clients; i++) {
+            new Thread(
+                    new Slave(i,host)
+            ).start();
+        }
+
     }
 }

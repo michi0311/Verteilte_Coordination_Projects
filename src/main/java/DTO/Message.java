@@ -9,8 +9,9 @@ import java.io.Serializable;
 public class Message implements Serializable {
     private MessageType type;
     private int id;
+    private DataType dataType;
     private int datalength;
-    private int data;
+    private byte[] data;
 
     public Message() {
 
@@ -21,9 +22,10 @@ public class Message implements Serializable {
         this.type= type;
     }
 
-    public Message(MessageType type, int datalength, int data) {
+    public Message(MessageType type, DataType dataType, int datalength, byte[] data) {
         this.type = type;
         this.datalength = datalength;
+        this.dataType = dataType;
         this.data = data;
     }
 
@@ -36,11 +38,15 @@ public class Message implements Serializable {
         return id;
     }
 
+    public DataType getDataType() {
+        return dataType;
+    }
+
     public int getDatalength() {
         return datalength;
     }
 
-    public int getData() {
+    public byte[] getData() {
         return data;
     }
 
@@ -52,11 +58,15 @@ public class Message implements Serializable {
         this.id = id;
     }
 
+    public void setDataType(DataType dataType) {
+        this.dataType = dataType;
+    }
+
     public void setDatalength(int datalength) {
         this.datalength = datalength;
     }
 
-    public void setData(int data) {
+    public void setData(byte[] data) {
         this.data = data;
     }
 
