@@ -18,7 +18,7 @@ public class Master implements Runnable{
     private int maxUsers;
     private Map<Integer,Socket> clients;
 
-    private Master(int maxUsers) {
+    public Master(int maxUsers) {
         this.isStopped = false;
         clients = new HashMap<Integer,Socket>();
         this.maxUsers = maxUsers;
@@ -32,9 +32,9 @@ public class Master implements Runnable{
     public void run() {
         try {
             this.serverSocket = new ServerSocket(this.port);
-            System.out.println("Master running on port " + this.port);
+            System.out.println("Master: Master running on port " + this.port);
         } catch (IOException var4) {
-            throw new RuntimeException("Can't open port 9120", var4);
+            throw new RuntimeException("Master: Can't open port 9120", var4);
         }
 
         //Initialize connections
@@ -49,21 +49,21 @@ public class Master implements Runnable{
                 if (m.getType() == MessageType.Initialize) {
                     if (!clients.containsKey(m.getId())) {
                         clients.put(m.getId(), clientSocket);
-                        System.out.println("Client " + clientSocket + " successfully added");
+                        System.out.println("Master: Client " + clientSocket + " successfully added");
                     } else {
-                        System.out.println("ID already taken: " + m.getId());
+                        System.out.println("Master: ID already taken: " + m.getId());
                     }
                 } else {
-                    System.out.println("Wrong Message Type");
+                    System.out.println("Master: Wrong Message Type");
                 }
 
                 System.out.println(m);
             } catch (Exception e) {
-                System.out.println("Error in accepting Socket: " + e);
+                System.out.println("Master: Error in accepting Socket: " + e);
             }
         }
 
-        System.out.println("Finished waiting");
+        System.out.println("Master: Finished waiting");
 
 
         for (int i: clients.keySet()) {
@@ -80,7 +80,7 @@ public class Master implements Runnable{
                 oos.close();
 
             } catch (Exception e) {
-                System.out.println("Error in sending Exercise: " + e);
+                System.out.println("Master: Error in sending Exercise: " + e);
             }
         }
 

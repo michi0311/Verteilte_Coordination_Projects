@@ -23,6 +23,7 @@ public class Slave implements Runnable{
         Socket s;
         try {
             s = new Socket(host,port);
+
             OutputStream outputStream = s.getOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(outputStream);
 
@@ -30,25 +31,22 @@ public class Slave implements Runnable{
 
             oos.writeObject(init);
             oos.flush();
-
-
-
-
-            while(!isStopped) {
-                try {
-                    InputStream inputStream =  s.getInputStream();
-                    ObjectInputStream ois = new ObjectInputStream(inputStream);
-                    Message m = (Message) ois.readObject();
-                    System.out.println(m);
-                } catch (Exception e) {
-                    System.out.println(e);
-                }
-
-            }
-
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error in connecting Client: " + e);
+            System.out.println("Slave: Error in connecting Client: " + e);
         }
+
+        try {
+            InputStream inputStream = s.getInputStream();
+            ObjectInputStream ois = new ObjectInputStream(inputStream);
+            Message m = (Message) ois.readObject();
+            System.out.println(m);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+
+        
     }
 }
