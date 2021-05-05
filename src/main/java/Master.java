@@ -1,11 +1,11 @@
 import DTO.Message;
+import DTO.MessageType;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.LinkedList;
+import java.util.HashMap;
+import java.util.Map;
 
 /****************************
  * Created by Michael Marolt *
@@ -16,11 +16,11 @@ public class Master implements Runnable{
     private ServerSocket serverSocket;
     private boolean isStopped;
     private int maxUsers;
-    private LinkedList<Socket> clients;
+    private Map<Integer,Socket> clients;
 
     private Master(int maxUsers) {
         this.isStopped = false;
-        clients = new LinkedList<Socket>();
+        clients = new HashMap<Integer,Socket>();
         this.maxUsers = maxUsers;
     }
 
@@ -37,16 +37,26 @@ public class Master implements Runnable{
             throw new RuntimeException("Can't open port 9120", var4);
         }
 
-
+        //Initialize connections
         while (maxUsers > clients.size()) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println(clientSocket);
-                System.out.println(clients.size());
-                clients.add(clientSocket);
+
                 InputStream is = clientSocket.getInputStream();
                 ObjectInputStream ois = new ObjectInputStream(is);
                 Message m = (Message) ois.readObject();
+
+                if (m.getType() == MessageType.Initialize) {
+                    if (!clients.containsKey(m.getId())) {
+                        clients.put(m.getId(), clientSocket);
+                        System.out.println("Client " + clientSocket + " successfully added");
+                    } else {
+                        System.out.println("ID already taken: " + m.getId());
+                    }
+                } else {
+                    System.out.println("Wrong Message Type");
+                }
+
                 System.out.println(m);
             } catch (Exception e) {
                 System.out.println("Error in accepting Socket: " + e);
@@ -55,5 +65,28 @@ public class Master implements Runnable{
 
         System.out.println("Finished waiting");
 
+
+        for (int i: clients.keySet()) {
+            try {
+                Socket client = clients.get(i);
+
+                OutputStream outputStream = client.getOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+
+                Message ex = new Message(MessageType.Exerscise, 10, 1);
+
+                oos.writeObject(ex);
+                oos.flush();
+                oos.close();
+
+            } catch (Exception e) {
+                System.out.println("Error in sending Exercise: " + e);
+            }
+        }
+
+
+        while (!isStopped) {
+
+        }
     }
 }
