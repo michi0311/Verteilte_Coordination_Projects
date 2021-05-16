@@ -5,5 +5,6 @@ package DTO;
  *****************************/
 
 public enum DataType {
-    StringTest
+    StringTest,
+    Matrix
 }

@@ -1,4 +1,4 @@
-import java.util.concurrent.TimeUnit;
+
 
 /****************************
  * Created by Michael Marolt *
@@ -11,7 +11,7 @@ public class Main implements Runnable{
 
     @Override
     public void run() {
-        int clients = 3;
+        int clients = 2;
         String host = "127.0.0.1";
         new Thread(
                 new Master(clients)

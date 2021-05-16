@@ -14,12 +14,11 @@ import java.util.Map;
  *****************************/
 
 public class Master implements Runnable{
-    private int port = 9120;
-    private ServerSocket serverSocket;
+    final private int port = 9120;
     private boolean isStopped;
     private int maxUsers;
     private Map<Integer,Socket> clients;
-    private DataType dataType = DataType.StringTest;
+    private DataType dataType = DataType.Matrix;
 
     public Master(int maxUsers) {
         this.isStopped = false;
@@ -28,13 +27,14 @@ public class Master implements Runnable{
     }
 
     public static void main(String[] args) {
-        Master x = new Master(1);
+        Master x = new Master(0);
         x.run();
     }
 
     public void run() {
+        ServerSocket serverSocket;
         try {
-            this.serverSocket = new ServerSocket(this.port);
+            serverSocket = new ServerSocket(this.port);
             System.out.println("Master: Master running on port " + this.port);
         } catch (IOException var4) {
             throw new RuntimeException("Master: Can't open port 9120", var4);
@@ -60,7 +60,7 @@ public class Master implements Runnable{
                     System.out.println("Master: Wrong Message Type");
                 }
 
-                System.out.println("Master: "+m);
+                System.out.println("Master: " + m);
             } catch (Exception e) {
                 System.out.println("Master: Error in accepting Socket: " + e);
             }
@@ -71,6 +71,11 @@ public class Master implements Runnable{
         Map<Integer,byte[]> data = new HashMap<>();
         if (dataType == DataType.StringTest) {
              data = getTestData();
+        } else if (dataType == DataType.Matrix) {
+            data = getMatrixData();
+        } else {
+            System.out.println("No Data Type given");
+            System.exit(2);
         }
 
 
@@ -105,15 +110,12 @@ public class Master implements Runnable{
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Master: Error in gettign Result");
+            System.out.println("Master: Error in getting Result");
         }
 
         if (dataType == DataType.StringTest) {
             handleTestDataResults(clientMessages);
         }
-
-
-
     }
 
 
@@ -129,10 +131,64 @@ public class Master implements Runnable{
         return out;
     }
 
+    /**
+     * Distribute Matrix Data to Socket IDs
+     *
+     * @return
+     */
+    private Map<Integer,byte[]> getMatrixData() {
+        Map<Integer,byte[]> out = new HashMap<>();
+
+        int[][] test = {{1,2,3,4},{5,6,7,8},{9,10,11,12},{13,14,15,16}};
+
+        Map<Integer,int[][]> clientChunks = new HashMap<>();
+        Integer[] clientIds = clients.keySet().toArray(new Integer[clients.keySet().size()]);
+        int chunkSize = test.length / clientIds.length;
+        int startIndex = 0;
+        int endIndex = 0;
+        for (int i = 0; i < clientIds.length; i++) {
+            endIndex += chunkSize;
+            if (i == clientIds.length - 1) {
+                endIndex = test.length;
+            }
+            clientChunks.put(clientIds[i],new int[endIndex - startIndex][test[1].length]);
+            System.arraycopy(test,startIndex,clientChunks.get(clientIds[i]),0,endIndex - startIndex);
+            startIndex = endIndex;
+        }
+
+        for (int i: clientIds) {
+            System.out.println(i);
+            System.out.println(twoDimensionalArrayToString( clientChunks.get(i) ));
+            System.out.println();
+        }
+
+
+
+        return out;
+    }
+
 
     private void handleTestDataResults(Map<Integer,byte[]> data) {
         for (int i: data.keySet()) {
             System.out.println("Master: Slave " + i + ": " + new String(data.get(i), StandardCharsets.UTF_8));
         }
+    }
+
+    private String twoDimensionalArrayToString(int[][] in) {
+        StringBuffer result = new StringBuffer();
+        String separator = ",";
+
+        for (int i = 0; i < in.length; ++i) {
+            result.append('[');
+            for (int j = 0; j < in[i].length; ++j)
+                if (j > 0)
+                    result.append(separator).append(in[i][j]);
+                else
+                    result.append(in[i][j]);
+            result.append(']');
+            result.append("\n");
+        }
+
+        return result.toString();
     }
 }
