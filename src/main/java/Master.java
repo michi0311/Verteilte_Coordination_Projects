@@ -1,15 +1,18 @@
+import DTO.ArrayData;
 import DTO.DataType;
 import DTO.Message;
 import DTO.MessageType;
+import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
-/****************************
+/*****************************
  * Created by Michael Marolt *
  *****************************/
 
@@ -24,11 +27,6 @@ public class Master implements Runnable{
         this.isStopped = false;
         clients = new HashMap<Integer,Socket>();
         this.maxUsers = maxUsers;
-    }
-
-    public static void main(String[] args) {
-        Master x = new Master(0);
-        x.run();
     }
 
     public void run() {
@@ -72,7 +70,21 @@ public class Master implements Runnable{
         if (dataType == DataType.StringTest) {
              data = getTestData();
         } else if (dataType == DataType.Matrix) {
-            data = getMatrixData();
+            //int[][] test = {{1,2,3,4},{5,6,7,8},{9,10,11,12},{13,14,15,16}};
+            int[][] test = {{1,2,3,4,5,6,7},
+                            {8,9,10,11,12,13,14},
+                            {15,16,17,18,19,20,21},
+                            {22,23,24,25,26,27,28},
+                            {29,30,31,32,33,34,35}};
+            int[][] test2 = {{10,20,30,40,50},
+                            {11,21,31,41,51},
+                            {12,22,32,42,52},
+                            {13,23,33,43,53},
+                            {14,24,34,44,54},
+                            {15,25,35,45,55},
+                            {16,26,36,46,56}};
+
+            data = getMatrixData(test,test2);
         } else {
             System.out.println("No Data Type given");
             System.exit(2);
@@ -115,6 +127,8 @@ public class Master implements Runnable{
 
         if (dataType == DataType.StringTest) {
             handleTestDataResults(clientMessages);
+        } else if (dataType == DataType.Matrix) {
+            handleMatrixDataResults(clientMessages);
         }
     }
 
@@ -136,32 +150,32 @@ public class Master implements Runnable{
      *
      * @return
      */
-    private Map<Integer,byte[]> getMatrixData() {
+    private Map<Integer,byte[]> getMatrixData(int[][] array1, int[][]array2) {
         Map<Integer,byte[]> out = new HashMap<>();
 
-        int[][] test = {{1,2,3,4},{5,6,7,8},{9,10,11,12},{13,14,15,16}};
-
-        Map<Integer,int[][]> clientChunks = new HashMap<>();
+        Map<Integer, ArrayData> clientChunks = new HashMap<>();
         Integer[] clientIds = clients.keySet().toArray(new Integer[clients.keySet().size()]);
-        int chunkSize = test.length / clientIds.length;
+        int chunkSize = array1.length / clientIds.length;
         int startIndex = 0;
         int endIndex = 0;
         for (int i = 0; i < clientIds.length; i++) {
             endIndex += chunkSize;
             if (i == clientIds.length - 1) {
-                endIndex = test.length;
+                endIndex = array1.length;
             }
-            clientChunks.put(clientIds[i],new int[endIndex - startIndex][test[1].length]);
-            System.arraycopy(test,startIndex,clientChunks.get(clientIds[i]),0,endIndex - startIndex);
+
+            int[][] array2out = getColumnsToArray(array2);
+
+            clientChunks.put(clientIds[i], new ArrayData( new int[endIndex - startIndex][array1[1].length], array2out));
+            System.arraycopy(array1,startIndex,clientChunks.get(clientIds[i]).getPartitionedArray(),0,endIndex - startIndex);
             startIndex = endIndex;
         }
 
-        for (int i: clientIds) {
-            System.out.println(i);
-            System.out.println(twoDimensionalArrayToString( clientChunks.get(i) ));
-            System.out.println();
-        }
 
+
+        for (int i: clientIds) {
+            out.put(i,SerializationUtils.serialize(clientChunks.get(i)));
+        }
 
 
         return out;
@@ -174,21 +188,25 @@ public class Master implements Runnable{
         }
     }
 
-    private String twoDimensionalArrayToString(int[][] in) {
-        StringBuffer result = new StringBuffer();
-        String separator = ",";
+    private void handleMatrixDataResults(Map<Integer,byte[]> data) {
+        LinkedList<int[]> results = new LinkedList<>();
 
-        for (int i = 0; i < in.length; ++i) {
-            result.append('[');
-            for (int j = 0; j < in[i].length; ++j)
-                if (j > 0)
-                    result.append(separator).append(in[i][j]);
-                else
-                    result.append(in[i][j]);
-            result.append(']');
-            result.append("\n");
+        for (int i: data.keySet()) {
+           ArrayData t = SerializationUtils.deserialize(data.get(i));
+            System.out.println(Helper.twoDimensionalArrayToString(t.getSolutionsArray()));
+
         }
+    }
 
-        return result.toString();
+
+    private int[][] getColumnsToArray(int[][] data) {
+        int[][] col = new int[data[0].length][data.length];
+
+        for (int i = 0; i < data.length ; i++) {
+            for (int j = 0; j < data[i].length; j++) {
+                col[j][i]= data[i][j];
+            }
+        }
+        return col;
     }
 }

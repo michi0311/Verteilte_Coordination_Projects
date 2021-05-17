@@ -1,6 +1,8 @@
+import DTO.ArrayData;
 import DTO.DataType;
 import DTO.Message;
 import DTO.MessageType;
+import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.*;
 import java.net.Socket;
@@ -44,17 +46,17 @@ public class Slave implements Runnable{
             byte[] resultOut = new byte[] {};
             if (m.getDataType() == DataType.StringTest) {
                 resultOut = processTestString(m.getData());
+            } else if (m.getDataType() == DataType.Matrix) {
+                resultOut = processMatrix(m.getData());
             }
 
             Message res = new Message(MessageType.Result, m.getDataType(), resultOut.length, resultOut);
+            System.out.println("Slave " + ID + " : " + res.toString());
 
             outputStream = s.getOutputStream();
             oos = new ObjectOutputStream(outputStream);
             oos.writeObject(res);
             oos.flush();
-
-
-
 
 
 
@@ -70,5 +72,33 @@ public class Slave implements Runnable{
         System.out.println("Slave: Data = " + in);
         in = in.toUpperCase(Locale.ROOT);
         return in.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private byte[] processMatrix(byte[] dataIn) {
+        ArrayData arrayData = SerializationUtils.deserialize(dataIn);
+
+        System.out.println("Slave " + ID + " : " + Helper.twoDimensionalArrayToString(arrayData.getPartitionedArray()));
+
+        int[][] arrayOut = matrixMultiplication(arrayData.getPartitionedArray(), arrayData.getFullArray());
+
+        ArrayData out = new ArrayData();
+        out.setSolutionsArray(arrayOut);
+
+        return SerializationUtils.serialize(out);
+    }
+
+
+    private int[][] matrixMultiplication(int[][] array1, int[][] array2) {
+        int[][] arrayOut = new int[array1.length][array2.length];
+
+        for (int i = 0; i < array1.length; i++) {
+            for (int j = 0; j < array2.length; j++) {
+                arrayOut[i][j] = 0;
+                for (int k = 0; k < array1[i].length; k++) {
+                    arrayOut[i][j] += array1[i][k] * array2[j][k];
+                }
+            }
+        }
+        return arrayOut;
     }
 }
