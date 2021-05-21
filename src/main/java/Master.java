@@ -8,9 +8,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 /*****************************
  * Created by Michael Marolt *
@@ -70,8 +68,7 @@ public class Master implements Runnable{
         if (dataType == DataType.StringTest) {
              data = getTestData();
         } else if (dataType == DataType.Matrix) {
-            //int[][] test = {{1,2,3,4},{5,6,7,8},{9,10,11,12},{13,14,15,16}};
-            int[][] test = {{1,2,3,4,5,6,7},
+            /*int[][] test = {{1,2,3,4,5,6,7},
                             {8,9,10,11,12,13,14},
                             {15,16,17,18,19,20,21},
                             {22,23,24,25,26,27,28},
@@ -82,15 +79,16 @@ public class Master implements Runnable{
                             {13,23,33,43,53},
                             {14,24,34,44,54},
                             {15,25,35,45,55},
-                            {16,26,36,46,56}};
-
-            data = getMatrixData(test,test2);
+                            {16,26,36,46,56}};*/
+            int[][] test = getRandomMatrix(100,4);
+            int[][] test2 = getRandomMatrix(4,100);
+            data = getMatrixData(test2,test);
         } else {
             System.out.println("No Data Type given");
             System.exit(2);
         }
 
-
+        Map<Integer,Message> clientsToMessages = new HashMap<>();
         for (int i: clients.keySet()) {
             try {
                 Socket client = clients.get(i);
@@ -101,7 +99,8 @@ public class Master implements Runnable{
                 byte[] bytesOut = data.get(i);
                 int dataLength = bytesOut.length;
                 Message ex = new Message(MessageType.Exerscise, dataType, dataLength, bytesOut);
-                System.out.println("Master: " + ex);
+                System.out.println("Master: sending Message: " + ex);
+                clientsToMessages.put(i,ex);
 
                 oos.writeObject(ex);
                 oos.flush();
@@ -113,19 +112,93 @@ public class Master implements Runnable{
 
 
         Map<Integer,byte[]> clientMessages = new HashMap<>();
-        try {
-            for (int i: clients.keySet()) {
-                InputStream in = clients.get(i).getInputStream();
-                ObjectInputStream ois = new ObjectInputStream(in);
-                Message m = (Message) ois.readObject();
-                clientMessages.put(i,m.getData());
+
+        boolean readingDataFinished = false;
+        LinkedList<Integer> idsNotFinished = new LinkedList<>(new ArrayList<>(clients.keySet()));
+        long startTime = System.currentTimeMillis();
+
+        while (!readingDataFinished) {
+            try {
+                LinkedList<Integer> tempIdList = new LinkedList<>(idsNotFinished);
+                for (Integer i: idsNotFinished) {
+                    //System.out.println("Master: Getting Results from Slave " + i);
+                    InputStream in = clients.get(i).getInputStream();
+                    if (in.available() != 0) {
+                        tempIdList.remove(i);
+                        ObjectInputStream ois = new ObjectInputStream(in);
+                        Message m = (Message) ois.readObject();
+                        System.out.println("Master: getting Result from Client " + i + " :" + m.toString());
+                        if (m.getId() != 0) {
+                            clientMessages.put(m.getId(),m.getData());
+                        } else {
+
+                            clientMessages.put(i,m.getData());
+                        }
+
+                    } else {
+                        if (System.currentTimeMillis() - startTime >= 1000) {
+                            startTime = System.currentTimeMillis();
+                            int clientId = 0;
+
+                            LinkedList<Integer> allUsers = new LinkedList<>(new ArrayList<>(clients.keySet()));
+                            for (Integer inte: allUsers) {
+                                if (!(idsNotFinished.contains(inte) || tempIdList.contains(inte))) {
+                                    clientId = inte;
+                                    break;
+                                }
+                            }
+                            Message m = clientsToMessages.get(i);
+                            m.setId(i);
+                            System.out.println("Master: sending Message to Client " + clientId + " because Client " + i + " failed: " + m.toString());
+
+                            Socket client = clients.get(clientId);
+
+                            OutputStream outputStream = client.getOutputStream();
+                            ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+                            oos.writeObject(m);
+                            oos.flush();
+
+                            //remove Failing Client from List
+                            tempIdList.remove(i);
+                            clients.remove(i);
+                            tempIdList.add(clientId);
+                            System.out.println(tempIdList);
+                            break;
+                        }
+                    }
+
+                }
+                idsNotFinished = tempIdList;
+                //System.out.println(idsNotFinished);
+                if (idsNotFinished.isEmpty()) readingDataFinished = true;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.out.println("Master: Error in getting Result");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Master: Error in getting Result");
         }
 
+        for (int i: clients.keySet()) {
+            try {
+                Socket client = clients.get(i);
+                OutputStream outputStream = client.getOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+
+
+                Message ex = new Message(0,MessageType.Finished);
+                System.out.println("Master: sending Finished" + ex);
+                clientsToMessages.put(i,ex);
+
+                oos.writeObject(ex);
+                oos.flush();
+            } catch (Exception e) {
+                System.out.println("Master: Error in sending Finished: " + e);
+            }
+        }
+
+
         if (dataType == DataType.StringTest) {
+
             handleTestDataResults(clientMessages);
         } else if (dataType == DataType.Matrix) {
             handleMatrixDataResults(clientMessages);
@@ -160,7 +233,11 @@ public class Master implements Runnable{
         int endIndex = 0;
         for (int i = 0; i < clientIds.length; i++) {
             endIndex += chunkSize;
-            if (i == clientIds.length - 1) {
+            if (chunkSize == 0) {
+                endIndex += 1;
+            }
+
+            if (endIndex != array1.length &&i == clientIds.length - 1) {
                 endIndex = array1.length;
             }
 
@@ -208,5 +285,20 @@ public class Master implements Runnable{
             }
         }
         return col;
+    }
+
+
+    private int[][] getRandomMatrix(int rows, int columns) {
+        int[][] out = new int[rows][columns];
+        int min = 0;
+        int max = 100;
+
+        for (int i = 0; i <rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                out[i][j] = (int) Math.floor(Math.random()*(max-min+1)+min);
+            }
+        }
+        System.out.println(Helper.twoDimensionalArrayToString(out));
+        return out;
     }
 }

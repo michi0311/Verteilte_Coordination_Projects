@@ -7,5 +7,6 @@ package DTO;
 public enum MessageType {
     Initialize,
     Exerscise,
-    Result;
+    Result,
+    Finished
 }

@@ -1,6 +1,7 @@
 package DTO;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /****************************
  * Created by Michael Marolt *
@@ -75,6 +76,7 @@ public class Message implements Serializable {
         return "Message{" +
                 "type=" + type +
                 ", id=" + id +
+                ", dataType=" + dataType +
                 ", datalength=" + datalength +
                 ", data=" + data +
                 '}';
